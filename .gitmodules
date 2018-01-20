@@ -5,3 +5,6 @@
 [submodule "freedesktop"]
 	path = freedesktop
 	url = git://github.com/lcpz/awesome-freedesktop.git
+[submodule "sht"]
+	path = sht
+	url = https://github.com/bang-uin/awesome-sht.git

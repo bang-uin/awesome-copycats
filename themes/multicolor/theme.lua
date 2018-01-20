@@ -8,13 +8,18 @@
 
 local gears = require("gears")
 local lain  = require("lain")
+local sht   = require("sht")
 local awful = require("awful")
 local wibox = require("wibox")
 local os    = { getenv = os.getenv, setlocale = os.setlocale }
 
+function setwallpaper(s)
+    return os.getenv("HOME") .. "/Downloads/Lime\ Light/WallpaperFusion-lime-light-5760x1080-M" .. s.index .. ".jpg"
+end
+
 local theme                                     = {}
 theme.confdir                                   = os.getenv("HOME") .. "/.config/awesome/themes/multicolor"
-theme.wallpaper                                 = theme.confdir .. "/wall.png"
+theme.wallpaper                                 = setwallpaper
 theme.font                                      = "xos4 Terminus 8"
 theme.menu_bg_normal                            = "#000000"
 theme.menu_bg_focus                             = "#000000"
@@ -69,6 +74,8 @@ theme.layout_max                                = theme.confdir .. "/icons/max.p
 theme.layout_fullscreen                         = theme.confdir .. "/icons/fullscreen.png"
 theme.layout_magnifier                          = theme.confdir .. "/icons/magnifier.png"
 theme.layout_floating                           = theme.confdir .. "/icons/floating.png"
+theme.titlebar_bg_focus                         = "#ffffff"
+theme.titlebar_fg_focus                         = "#000000"
 theme.titlebar_close_button_normal              = theme.confdir .. "/icons/titlebar/close_normal.png"
 theme.titlebar_close_button_focus               = theme.confdir .. "/icons/titlebar/close_focus.png"
 theme.titlebar_minimize_button_normal           = theme.confdir .. "/icons/titlebar/minimize_normal.png"
@@ -89,6 +96,8 @@ theme.titlebar_maximized_button_normal_inactive = theme.confdir .. "/icons/title
 theme.titlebar_maximized_button_focus_inactive  = theme.confdir .. "/icons/titlebar/maximized_focus_inactive.png"
 theme.titlebar_maximized_button_normal_active   = theme.confdir .. "/icons/titlebar/maximized_normal_active.png"
 theme.titlebar_maximized_button_focus_active    = theme.confdir .. "/icons/titlebar/maximized_focus_active.png"
+theme.tooltip_fg = theme.fg_normal
+theme.tooltip_bg = theme.bg_normal
 
 local markup = lain.util.markup
 
@@ -100,6 +109,7 @@ mytextclock.font = theme.font
 
 -- Calendar
 theme.cal = lain.widget.calendar({
+    followtag = true,
     attach_to = { mytextclock },
     notification_preset = {
         font = "xos4 Terminus 10",
@@ -111,12 +121,12 @@ theme.cal = lain.widget.calendar({
 -- Weather
 local weathericon = wibox.widget.imagebox(theme.widget_weather)
 theme.weather = lain.widget.weather({
-    city_id = 2643743, -- placeholder (London)
+    city_id = 2825297, -- Stuttgart
     notification_preset = { font = "xos4 Terminus 10", fg = theme.fg_normal },
     weather_na_markup = markup.fontfg(theme.font, "#eca4c4", "N/A "),
     settings = function()
-        descr = weather_now["weather"][1]["description"]:lower()
-        units = math.floor(weather_now["main"]["temp"])
+        local descr = weather_now["weather"][1]["description"]:lower()
+        local units = math.floor(weather_now["main"]["temp"])
         widget:set_markup(markup.fontfg(theme.font, "#eca4c4", descr .. " @ " .. units .. "°C "))
     end
 })
@@ -124,6 +134,7 @@ theme.weather = lain.widget.weather({
 -- / fs
 local fsicon = wibox.widget.imagebox(theme.widget_fs)
 theme.fs = lain.widget.fs({
+    followtag = true,
     options = "--exclude-type=tmpfs",
     notification_preset = { font = "xos4 Terminus 10", fg = theme.fg_normal },
     settings  = function()
@@ -131,34 +142,15 @@ theme.fs = lain.widget.fs({
     end
 })
 
---[[ Mail IMAP check
--- commented because it needs to be set before use
-local mailicon = wibox.widget.imagebox()
-local mail = lain.widget.imap({
-    timeout  = 180,
-    server   = "server",
-    mail     = "mail",
-    password = "keyring get mail",
-    settings = function()
-        if mailcount > 0 then
-            mailicon:set_image(theme.widget_mail)
-            widget:set_markup(markup.fontfg(theme.font, "#cccccc", mailcount .. " "))
-        else
-            widget:set_text("")
-            --mailicon:set_image() -- not working in 4.0
-            mailicon._private.image = nil
-            mailicon:emit_signal("widget::redraw_needed")
-            mailicon:emit_signal("widget::layout_changed")
-        end
-    end
-})
---]]
-
--- CPU
+-- CPU (all cores)
 local cpuicon = wibox.widget.imagebox(theme.widget_cpu)
 local cpu = lain.widget.cpu({
     settings = function()
-        widget:set_markup(markup.fontfg(theme.font, "#e33a6e", cpu_now.usage .. "% "))
+        local m = ""
+        for i = 1, #cpu_now do 
+            m = m .. cpu_now[i].usage .. "% " 
+        end
+        widget:set_markup(markup.fontfg(theme.font, "#e33a6e", m))
     end
 })
 
@@ -170,33 +162,26 @@ local temp = lain.widget.temp({
     end
 })
 
--- Battery
-local baticon = wibox.widget.imagebox(theme.widget_batt)
-local bat = lain.widget.bat({
+-- APC
+local apcicon = wibox.widget.imagebox(theme.widget_batt)
+local apc = sht.widget.apc({
     settings = function()
-        local perc = bat_now.perc ~= "N/A" and bat_now.perc .. "%" or bat_now.perc
-
-        if bat_now.ac_status == 1 then
-            perc = perc .. " plug"
-        end
-
-        widget:set_markup(markup.fontfg(theme.font, theme.fg_normal, perc .. " "))
+        widget:set_markup(markup.fontfg(theme.font, theme.fg_normal, apc_now.perc .. " % " .. apc_now.time_left .. " M "))
     end
 })
 
--- ALSA volume
+-- Pulse volume
 local volicon = wibox.widget.imagebox(theme.widget_vol)
-theme.volume = lain.widget.alsa({
-    settings = function()
-        if volume_now.status == "off" then
-            volume_now.level = volume_now.level .. "M"
-        end
-
-        widget:set_markup(markup.fontfg(theme.font, "#7493d2", volume_now.level .. "% "))
-    end
+theme.volume = sht.widget.pulseaudio({
+    colors = {
+        background = theme.fg_normal,
+        mute       = "#EB8F8F",
+        unmute     = "#7493d2"
+    }
 })
 
 -- Net
+local netip = wibox.widget.textbox()
 local netdownicon = wibox.widget.imagebox(theme.widget_netdown)
 local netdowninfo = wibox.widget.textbox()
 local netupicon = wibox.widget.imagebox(theme.widget_netup)
@@ -210,6 +195,7 @@ local netupinfo = lain.widget.net({
 
         widget:set_markup(markup.fontfg(theme.font, "#e54c62", net_now.sent .. " "))
         netdowninfo:set_markup(markup.fontfg(theme.font, "#87af5f", net_now.received .. " "))
+        --netip:set_markup(markup.fontfg(theme.font, "#87af5f", net_now.carrier .. " "))
     end
 })
 
@@ -298,8 +284,6 @@ function theme.at_screen_connect(s)
         { -- Right widgets
             layout = wibox.layout.fixed.horizontal,
             wibox.widget.systray(),
-            --mailicon,
-            --mail.widget,
             netdownicon,
             netdowninfo,
             netupicon,
@@ -310,14 +294,14 @@ function theme.at_screen_connect(s)
             memory.widget,
             cpuicon,
             cpu.widget,
+            tempicon,
+            temp.widget,
             fsicon,
             theme.fs.widget,
             weathericon,
             theme.weather.widget,
-            tempicon,
-            temp.widget,
-            baticon,
-            bat.widget,
+            apcicon,
+            apc.widget,
             clockicon,
             mytextclock,
         },
