@@ -17,6 +17,13 @@ A set of themes for the Awesome_ window manager, version 4.x.
 
 See branches_ for previous versions.
 
+Purpose
+=======
+
+The main purpose of this repository is to spread ready to use configurations, which can also serve as a cookbook for customisation.
+
+A secondary aim is to add new themes only when they constitute different UI/UX designs.
+
 Features
 ========
 
@@ -90,7 +97,7 @@ Installation
 .. code-block:: shell
 
     $ git clone --recursive https://github.com/lcpz/awesome-copycats.git
-    $ mv -bv awesome-copycats/* ~/.config/awesome; rm -rf awesome-copycats
+    $ mv -bv awesome-copycats/* ~/.config/awesome && rm -rf awesome-copycats
 
 Usage
 =====
@@ -134,9 +141,9 @@ This way, you can safely ``git pull`` anytime.
 Notes
 =====
 
-Complements are provided by lain_ and freedesktop_.
+Complements are provided by lain_ and freedesktop_. **Be sure** to satisfy their dependencies.
 
-Fonts are Terminus_ (Multicolor, Powerarrow Darker), Tamzen_ (Copland), Roboto_ (Holo, Vertex) and Tamsyn_ (other ones).
+Fonts are Terminus_ (Multicolor, Powerarrow, Powerarrow Dark), Roboto_ (Holo, Vertex) and Tamsyn_ (other ones).
 
 Every theme has a colorscheme_.
 
@@ -144,7 +151,7 @@ Blackburn and Dremora use Icons_, Vertex uses FontAwesome_: be sure to have bitm
 
 Additional default software used: ::
 
-    unclutter firefox scrot mpd mpc dmenu xsel xlock
+    unclutter firefox scrot mpd mpc dmenu xsel slock
 
 .. _BY-NC-SA: http://creativecommons.org/licenses/by-nc-sa/4.0
 .. _b0ab0d7: https://github.com/lcpz/awesome-copycats/tree/b0ab0d7837987be81b9195a36631df773113d491
@@ -156,7 +163,7 @@ Additional default software used: ::
 .. _swordfischer: https://github.com/lcpz/awesome-copycats/issues/53
 .. _foozer: http://dotshare.it/dots/499
 .. _lain: https://github.com/lcpz/lain
-.. _freedesktop: https://github.com/lcpz/freedesktop
+.. _freedesktop: https://github.com/lcpz/awesome-freedesktop
 .. _Terminus: http://terminus-font.sourceforge.net
 .. _Tamzen: https://github.com/sunaku/tamzen-font
 .. _Roboto: https://fonts.google.com/specimen/Roboto
