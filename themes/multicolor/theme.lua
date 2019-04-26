@@ -11,6 +11,10 @@ local lain  = require("lain")
 local sht   = require("sht")
 local awful = require("awful")
 local wibox = require("wibox")
+local vicious = require("vicious")
+local naughty  = require("naughty")
+--local conky = require("conky")
+
 local os    = { getenv = os.getenv, setlocale = os.setlocale }
 
 function setwallpaper(s)
@@ -44,7 +48,7 @@ theme.menu_bg_focus                             = "#050505dd"
 theme.widget_temp                               = theme.confdir .. "/icons/temp.png"
 theme.widget_uptime                             = theme.confdir .. "/icons/ac.png"
 theme.widget_cpu                                = theme.confdir .. "/icons/cpu.png"
-theme.widget_weather                            = theme.confdir .. "/icons/dish.png"
+theme.widget_gpu                                = theme.confdir .. "/icons/gpu.png"
 theme.widget_fs                                 = theme.confdir .. "/icons/fs.png"
 theme.widget_mem                                = theme.confdir .. "/icons/mem.png"
 theme.widget_fs                                 = theme.confdir .. "/icons/fs.png"
@@ -118,19 +122,6 @@ theme.cal = lain.widget.calendar({
     }
 })
 
--- Weather
-local weathericon = wibox.widget.imagebox(theme.widget_weather)
-theme.weather = lain.widget.weather({
-    city_id = 2825297, -- Stuttgart
-    notification_preset = { font = "xos4 Terminus 10", fg = theme.fg_normal },
-    weather_na_markup = markup.fontfg(theme.font, "#eca4c4", "N/A "),
-    settings = function()
-        local descr = weather_now["weather"][1]["description"]:lower()
-        local units = math.floor(weather_now["main"]["temp"])
-        widget:set_markup(markup.fontfg(theme.font, "#eca4c4", descr .. " @ " .. units .. "°C "))
-    end
-})
-
 -- / fs
 local fsicon = wibox.widget.imagebox(theme.widget_fs)
 theme.fs = lain.widget.fs({
@@ -156,9 +147,9 @@ local cpu = lain.widget.cpu({
 
 -- Coretemp
 local tempicon = wibox.widget.imagebox(theme.widget_temp)
-local temp = lain.widget.temp({
+local cputemp = lain.widget.temp({
     settings = function()
-        widget:set_markup(markup.fontfg(theme.font, "#f1af5f", coretemp_now .. "°C "))
+        widget:set_markup(markup.fontfg(theme.font, "#f1af5f", "CPU " .. coretemp_now .. "°C "))
     end
 })
 
@@ -187,12 +178,6 @@ local netdowninfo = wibox.widget.textbox()
 local netupicon = wibox.widget.imagebox(theme.widget_netup)
 local netupinfo = lain.widget.net({
     settings = function()
-        if iface ~= "network off" and
-           string.match(theme.weather.widget.text, "N/A")
-        then
-            theme.weather.update()
-        end
-
         widget:set_markup(markup.fontfg(theme.font, "#e54c62", net_now.sent .. " "))
         netdowninfo:set_markup(markup.fontfg(theme.font, "#87af5f", net_now.received .. " "))
         --netip:set_markup(markup.fontfg(theme.font, "#87af5f", net_now.carrier .. " "))
@@ -234,6 +219,88 @@ theme.mpd = lain.widget.mpd({
         widget:set_markup(markup.fontfg(theme.font, "#e54c62", artist) .. markup.fontfg(theme.font, "#b2b2b2", title))
     end
 })
+
+-- {{{ HDD Temp
+local hddtempwidget = wibox.widget.textbox()
+vicious.register(hddtempwidget, vicious.widgets.hddtemp, 
+    function (widget, args)
+        local maxK = nil
+        local maxV = 0
+
+        if not hddtempwidget.temps then
+            hddtempwidget.temps = {}
+        end
+
+        for k,v in pairs(args) do
+            hddtempwidget.temps[k] = v
+        end
+
+        for k, v in pairs(hddtempwidget.temps) do
+            if hddtempwidget.temps[k] > maxV then
+                maxK, maxV = k, v
+            end
+        end
+
+        if maxV > 0 then
+            return string.format('<span color="#f1af5f">%s %i°C</span>', string.sub(maxK, 2, string.len(maxK) - 1), maxV)
+        else
+            return '<span color="#f1af5f">N/A</span>'
+        end
+    end, 
+19)
+
+function hddtempwidget.hide()
+    if not hddtempwidget.notification then return end
+    naughty.destroy(hddtempwidget.notification)
+    hddtempwidget.notification = nil
+end
+
+function hddtempwidget.show(seconds, scr)
+    --fs.update()
+    hddtempwidget.hide()
+    hddtempwidget.notification_preset.screen = scr or 1
+
+    local tkeys = {}
+    -- populate the table that holds the keys
+    for k in pairs(hddtempwidget.temps) do table.insert(tkeys, k) end
+    -- sort the keys
+    table.sort(tkeys)
+
+    local text = ""
+    for _, k in ipairs(tkeys) do
+        v = hddtempwidget.temps[k]
+        text = text .. string.sub(k, 2, string.len(k) - 1) .. "\t\t" .. v .. "°C\n"
+    end
+
+    hddtempwidget.notification = naughty.notify({
+        text = text,
+        preset  = hddtempwidget.notification_preset,
+        timeout = seconds or 5
+    })
+end
+
+hddtempwidget.notification_preset = { font = "xos4 Terminus 10", fg = theme.fg_normal }
+hddtempwidget:connect_signal('mouse::enter', function () hddtempwidget.show(0) end)
+hddtempwidget:connect_signal('mouse::leave', function () hddtempwidget.hide() end)
+-- }}}
+
+-- {{{ GPU 
+local gpuicon = wibox.widget.imagebox(theme.widget_gpu)
+local gpuwidget = wibox.widget.textbox()
+vicious.register(gpuwidget, 
+    function(format, warg)
+        local data = {}
+        local f = io.popen("nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,clocks.current.graphics,utilization.memory,power.draw --format=csv,noheader")
+        for line in f:lines() do
+            for sub in string.gmatch(string.gsub(line, "%%", "%%%%"), '([^,]+)') do
+                table.insert(data, sub)
+            end
+        end
+
+        return data
+    end, '<span color="#D93B3B">$1°C $2 $3 $4 $5</span>', 
+15)
+---}}}
 
 function theme.at_screen_connect(s)
     -- Quake application
@@ -295,11 +362,13 @@ function theme.at_screen_connect(s)
             cpuicon,
             cpu.widget,
             tempicon,
-            temp.widget,
+            cputemp.widget,
+            tempicon,
+            hddtempwidget,
+            gpuicon,
+            gpuwidget,
             fsicon,
             theme.fs.widget,
-            weathericon,
-            theme.weather.widget,
             apcicon,
             apc.widget,
             clockicon,
